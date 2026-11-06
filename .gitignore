@@ -5,6 +5,7 @@
 !.vscode/extensions.json
 *.sw?
 *.sh
+!.devcontainer/*.sh
 .DS_Store
 
 # --- Frontend (Node/Vite/React) ---
@@ -22,6 +23,7 @@ frontend/dist/
 frontend/.env
 backend/.env
 backend/auth.sqlite3
+backend/.dev-emails/
 
 # --- Logs ---
 logs

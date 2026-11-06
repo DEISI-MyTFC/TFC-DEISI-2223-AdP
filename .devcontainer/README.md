@@ -1,0 +1,97 @@
+# GitHub Codespaces
+
+This configuration runs PostgreSQL 15, Django (Python 3.13) and React/Vite
+(Node.js 22) inside one Codespace. It extends the root `docker-compose.yml`.
+No external database, SMTP service, Google account, secrets or `.env` files are
+needed. Building the images downloads container images and Python/npm packages;
+container startup and app use require no external services. npm installs from
+the package cache bundled in the frontend image, with networking disabled for
+the install (`--offline`).
+
+## Start
+
+1. On GitHub, select the **workingEnv** branch.
+2. Choose **Code → Codespaces → Create codespace on workingEnv**.
+3. Wait for the containers to start. Open **React frontend** on port **5173**
+   from the **Ports** tab if it has not opened automatically.
+
+Django runs on port **8000** and PostgreSQL is accessible only inside the
+Compose network as `bdtfc:5432`. Both database migrations run automatically
+before Django starts. A health check gates each dependent service.
+
+The frontend uses relative API URLs. Vite proxies `/api` and `/dj-rest-auth`
+to `backend:8000`, so browser cookies stay on the frontend's forwarded origin.
+Only this Codespace's exact frontend hostname is added to Vite's allowed hosts;
+Django trusts its two forwarded origins for CSRF. Keep forwarded ports private:
+the supplied credentials and debug servers are for development.
+
+## Register and log in without SMTP
+
+1. Open **Registe-se** and register with any valid email, such as
+   `developer@example.test`.
+2. In the Codespaces terminal, read the newest locally captured email:
+
+   ```bash
+   cd /workspaces/TFC-DEISI-2223-AdP
+   ls -t backend/.dev-emails/
+   cat backend/.dev-emails/<newest-file>.log
+   ```
+
+3. Enter the six-digit code from the HTML message in the browser.
+
+Login also writes its code to a new file in that directory. Google login is
+hidden when no client ID is configured. Email files and the local authentication
+database are ignored by Git. The normal settings and email delivery are still
+used outside the Codespaces configuration.
+
+The first PostgreSQL initialization creates synthetic `demo_projects` and
+`demo_tasks` tables, including a foreign key and sample rows. Use them to try
+the structure explorer, report previews and CSV/JSON/PDF downloads. No project
+business data is included or fetched.
+
+## Persistence and development
+
+PostgreSQL uses the existing `bdtfc_data` named volume. Users and saved report
+definitions remain in `backend/auth.sqlite3`, as required by the app's database
+router. Source code, SQLite and captured emails live in the Codespace workspace;
+frontend dependencies use a separate named volume. Stopping/restarting the
+Codespace preserves these; deleting the Codespace deletes its local data.
+The seed SQL runs only for a new, empty PostgreSQL volume.
+
+Django and Vite reload source edits. npm dependencies are installed offline from
+the lockfile on frontend startup. After changing Python requirements, the
+frontend lockfile or container configuration, run **Codespaces: Rebuild
+Container** to refresh the images and their dependencies.
+
+The default terminal is inside the backend container:
+
+```bash
+cd /workspaces/TFC-DEISI-2223-AdP/backend
+python manage.py check
+python manage.py test
+python manage.py createsuperuser --database=auth_db
+```
+
+Use the separately forwarded port 8000 for Django's `/admin/`.
+
+## Run the same stack with local Docker
+
+Use Docker Compose **2.24.4 or newer** (the override uses `!reset`). From the
+repository root:
+
+```bash
+docker compose -f docker-compose.yml -f .devcontainer/compose.yml up --build -d
+docker compose -f docker-compose.yml -f .devcontainer/compose.yml logs -f
+```
+
+The Compose services publish no host ports. To open the app locally, use
+VS Code **Dev Containers: Reopen in Container**, which forwards the same ports.
+From a host terminal you can validate the frontend with:
+
+```bash
+docker compose -f docker-compose.yml -f .devcontainer/compose.yml exec frontend npm run lint
+docker compose -f docker-compose.yml -f .devcontainer/compose.yml exec frontend npm run build
+```
+
+The original database-only `docker compose up -d` workflow remains available
+with the root `.env` file described in the main README.

@@ -10,6 +10,7 @@ import AuthSocialButton from '../components/auth/AuthSocialButton';
 import AuthDivider from '../components/auth/AuthDivider';
 
 export default function Login() {
+  const googleEnabled = Boolean(import.meta.env.VITE_GOOGLE_CLIENT_ID);
   const navigate = useNavigate();
   const { requestLoginCode, loginWithGoogle } = useAuth();
 
@@ -106,7 +107,7 @@ export default function Login() {
             </div>
           }
       >
-        <div className="space-y-3 mb-6">
+        {googleEnabled && <div className="space-y-3 mb-6">
           <AuthSocialButton
               type="button"
               onClick={handleGoogleLogin}
@@ -121,9 +122,9 @@ export default function Login() {
           >
             <span>Continuar com Google</span>
           </AuthSocialButton>
-        </div>
+        </div>}
 
-        <AuthDivider />
+        {googleEnabled && <AuthDivider />}
 
         <form onSubmit={handleSubmit} className="space-y-4" autoComplete="on">
           <AuthInput
