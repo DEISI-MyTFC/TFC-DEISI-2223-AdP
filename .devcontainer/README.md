@@ -95,3 +95,18 @@ docker compose -f docker-compose.yml -f .devcontainer/compose.yml exec frontend 
 
 The original database-only `docker compose up -d` workflow remains available
 with the root `.env` file described in the main README.
+
+## `Invalid line: DJANGO_SECRET_KEY=change-me`
+
+Older `.env.example` files had an invisible UTF-8 byte order mark (BOM) before
+the first key. Copying that file could make Django report that
+`DJANGO_SECRET_KEY` was missing. The settings loader now accepts UTF-8 files
+with or without a BOM, and the templates no longer include it. For an older
+checkout, save `backend/.env` as UTF-8 without BOM, preserving its values.
+
+The Codespaces configuration supplies Django settings through the backend
+container environment and does not require a `.env` file or a Python virtual
+environment. If you created a Codespace from a branch without this configuration,
+switch to `workingEnv` (or the target branch after merging) and run
+**Codespaces: Rebuild Container**. The configured backend uses Python 3.13 and
+runs both migrations automatically.

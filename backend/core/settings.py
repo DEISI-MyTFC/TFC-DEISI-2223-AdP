@@ -6,7 +6,8 @@ from datetime import timedelta
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 env = environ.Env(DEBUG=(bool, True))
-environ.Env.read_env(os.path.join(BASE_DIR, ".env"))
+# Accept existing .env files saved with a UTF-8 BOM as well as plain UTF-8.
+environ.Env.read_env(os.path.join(BASE_DIR, ".env"), encoding="utf-8-sig")
 
 # =========================================================
 # CORE
