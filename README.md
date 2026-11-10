@@ -78,10 +78,10 @@ Existem três ficheiros de ambiente:
 
 Os ficheiros reais `.env` não devem ser versionados. Usa os exemplos:
 
-```powershell
-copy .env.example .env
-copy backend\.env.example backend\.env
-copy frontend\.env.example frontend\.env
+```cmd line 
+cp .env.example .env
+cp backend/.env.example backend/.env
+cp frontend/.env.example frontend/.env
 ```
 
 ### Raiz Do Projeto
@@ -176,14 +176,14 @@ O ficheiro SQLite é criado em:
 backend/auth.sqlite3
 ```
 
-## Backend
+## Backend (***codespaces***)
 
 ### 1. Criar Ambiente Virtual
 
 ```powershell
 cd backend
-python -m venv venv
-.\venv\Scripts\Activate.ps1
+python -m venv .venv
+source ./.venv/bin/activate
 ```
 
 Se o PowerShell bloquear scripts:
