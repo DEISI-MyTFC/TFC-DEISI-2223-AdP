@@ -9,9 +9,9 @@
   "shutdownAction": "stopCompose",
   "postCreateCommand": "bash .devcontainer/check-tools.sh",
   "waitFor": "postCreateCommand",
-  "forwardPorts": ["frontend:5173", 8000, "bdtfc:5432"],
+  "forwardPorts": [5173, 8000, 5432],
   "portsAttributes": {
-    "frontend:5173": {
+    "5173": {
       "label": "React frontend",
       "onAutoForward": "openBrowser",
       "protocol": "http"

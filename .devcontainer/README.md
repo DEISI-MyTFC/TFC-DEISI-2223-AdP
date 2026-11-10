@@ -21,10 +21,14 @@ VS Code automatically installs Python, ESLint, Microsoft's PostgreSQL extension
 (`alexcvzz.vscode-sqlite`), when creating the Codespace. For an existing
 Codespace, pull the updated configuration and run **Codespaces: Rebuild Container**.
 
-Django runs on port **8000**. PostgreSQL is available inside the Compose network
-as `bdtfc:5432`, with a **PostgreSQL / 5432** entry configured for port forwarding.
-Both database migrations run automatically
-before Django starts. A health check gates each dependent service.
+Django runs on port **8000**. The backend/editor container also provides loopback
+TCP relays: `localhost:5432` reaches PostgreSQL at `bdtfc:5432`, and
+`localhost:5173` reaches Vite at `frontend:5173`. Codespaces requires numeric
+`forwardPorts` entries; it does not support `"host:port"` entries
+([Codespaces limitations](https://containers.dev/supporting#codespaces-specific-limitations)).
+The **Ports** panel is configured to show **5432**, **5173** and **8000**.
+Both database migrations run automatically before Django starts. A health check
+gates each dependent service, and the post-create check verifies both relays.
 
 ## Connect the database extensions
 
@@ -41,10 +45,35 @@ database service name directly when adding a connection:
 | Password | `codespace-development-only` |
 | SSL mode | Disable (the local development server uses plain TCP) |
 
+These are the Codespaces development defaults set explicitly for both PostgreSQL
+and Django in `.devcontainer/compose.yml`. The override replaces the root
+Compose `env_file`, so the root `.env` is used by the manual database-only setup,
+not by this Codespaces stack. Explicit container environment values also take
+precedence over `backend/.env` when Django loads its settings.
+
+PostgreSQL stores the initialized password in its data volume. Changing an
+environment file or rebuilding the container does not change an existing
+database role's password. A fresh database volume uses the default above;
+a reused volume retains its initialized or subsequently changed password.
+
 This connection uses the private Docker network. The extension does not need
 a published host port, a browser URL or a cloud PostgreSQL account. The forwarded
 5432 entry is useful for a local TCP client through VS Code Desktop or GitHub CLI
 port forwarding; an HTTP/HTTPS Codespaces URL is not a PostgreSQL connection string.
+After startup, `127.0.0.1:5432` also works from the editor container through the
+local relay. `bdtfc:5432` remains available directly.
+
+For an already-running Codespace whose rebuild is unavailable, the PostgreSQL
+extension can use `bdtfc:5432` immediately. To add a localhost listener for the
+Ports panel without rebuilding, run this in a separate terminal and leave it open:
+
+```bash
+sudo apt-get update
+sudo apt-get install -y socat
+socat TCP4-LISTEN:5432,bind=127.0.0.1,reuseaddr,fork TCP:bdtfc:5432
+```
+
+Then choose **Forward a Port** in the Ports panel and enter **5432**.
 
 For SQLite, run **SQLite: Open Database** in the Command Palette and select
 `backend/auth.sqlite3`. Use **SQLite: New Query** to query it outside Django admin.
