@@ -72,7 +72,28 @@ python manage.py test
 python manage.py createsuperuser --database=auth_db
 ```
 
-Use the separately forwarded port 8000 for Django's `/admin/`.
+Use the separately forwarded port 8000 for Django's `/admin/`. Opening its root
+URL redirects to `/admin/`; `runserver` still binds to an address and port.
+
+## Admin login and CSRF
+
+Django trusts the exact HTTP/HTTPS localhost origins for backend port 8000,
+including `https://localhost:8000` used by local HTTPS forwarding. The Codespaces
+settings also trust this Codespace's two generated forwarded origins. These
+settings apply to admin form submissions; the React CORS configuration is
+separate.
+
+For another browser origin, configure `CSRF_TRUSTED_ORIGINS` in `backend/.env`
+as a comma-separated list, preserving the other origins you use. Include the
+scheme and any explicit port, for example:
+
+```env
+CSRF_TRUSTED_ORIGINS=http://localhost:5173,https://localhost:8000
+```
+
+Restart Django after changing settings or environment variables, then reload
+`/admin/login/` before submitting credentials to obtain a fresh CSRF token.
+Admin login still requires a valid CSRF token and a permitted origin.
 
 ## Run the same stack with local Docker
 

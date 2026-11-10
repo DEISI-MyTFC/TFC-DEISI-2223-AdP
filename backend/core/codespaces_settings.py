@@ -1,10 +1,10 @@
 """Development-only settings for the self-contained Codespaces stack."""
 
 from .settings import *  # noqa: F403
-from .settings import BASE_DIR, env
+from .settings import BASE_DIR, CSRF_TRUSTED_ORIGINS as BASE_CSRF_TRUSTED_ORIGINS, env
 
 ALLOWED_HOSTS = ["localhost", "127.0.0.1", "backend"]
-CSRF_TRUSTED_ORIGINS = ["http://localhost:5173", "http://127.0.0.1:5173"]
+CSRF_TRUSTED_ORIGINS = list(BASE_CSRF_TRUSTED_ORIGINS)
 
 codespace_name = env("CODESPACE_NAME", default="")
 forwarding_domain = env("GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN", default="app.github.dev")
