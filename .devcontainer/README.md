@@ -15,6 +15,11 @@ the install (`--offline`).
 3. Wait for the containers to start. Open **React frontend** on port **5173**
    from the **Ports** tab if it has not opened automatically.
 
+VS Code automatically installs Python, ESLint, Microsoft's PostgreSQL extension
+(`ms-ossdata.vscode-pgsql`) and the Docker Extension Pack
+(`ms-azuretools.vscode-docker`) when creating the Codespace. For an existing
+Codespace, pull the updated configuration and run **Codespaces: Rebuild Container**.
+
 Django runs on port **8000** and PostgreSQL is accessible only inside the
 Compose network as `bdtfc:5432`. Both database migrations run automatically
 before Django starts. A health check gates each dependent service.
