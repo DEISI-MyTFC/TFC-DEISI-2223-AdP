@@ -17,12 +17,39 @@ the install (`--offline`).
 
 VS Code automatically installs Python, ESLint, Microsoft's PostgreSQL extension
 (`ms-ossdata.vscode-pgsql`) and the Docker Extension Pack
-(`ms-azuretools.vscode-docker`) when creating the Codespace. For an existing
+(`ms-azuretools.vscode-docker`), plus SQLite by alexcvzz
+(`alexcvzz.vscode-sqlite`), when creating the Codespace. For an existing
 Codespace, pull the updated configuration and run **Codespaces: Rebuild Container**.
 
-Django runs on port **8000** and PostgreSQL is accessible only inside the
-Compose network as `bdtfc:5432`. Both database migrations run automatically
+Django runs on port **8000**. PostgreSQL is available inside the Compose network
+as `bdtfc:5432`, with a **PostgreSQL / 5432** entry configured for port forwarding.
+Both database migrations run automatically
 before Django starts. A health check gates each dependent service.
+
+## Connect the database extensions
+
+The PostgreSQL extension runs inside the backend/editor container. Use the
+database service name directly when adding a connection:
+
+| Setting | Value |
+| --- | --- |
+| Server/host | `bdtfc` |
+| Port | `5432` |
+| Database | `tfc_bd` |
+| Authentication | PostgreSQL username/password |
+| Username | `dev_user` |
+| Password | `codespace-development-only` |
+| SSL mode | Disable (the local development server uses plain TCP) |
+
+This connection uses the private Docker network. The extension does not need
+a published host port, a browser URL or a cloud PostgreSQL account. The forwarded
+5432 entry is useful for a local TCP client through VS Code Desktop or GitHub CLI
+port forwarding; an HTTP/HTTPS Codespaces URL is not a PostgreSQL connection string.
+
+For SQLite, run **SQLite: Open Database** in the Command Palette and select
+`backend/auth.sqlite3`. Use **SQLite: New Query** to query it outside Django admin.
+The file is created by the automatic authentication migrations. The extension is
+configured to use the development image's `/usr/bin/sqlite3` executable.
 
 The frontend uses relative API URLs. Vite proxies `/api` and `/dj-rest-auth`
 to `backend:8000`, so browser cookies stay on the frontend's forwarded origin.
@@ -74,6 +101,7 @@ The default terminal is inside the backend container:
 python --version
 node --version
 npm --version
+sqlite3 --version
 docker --version
 docker compose version
 docker ps

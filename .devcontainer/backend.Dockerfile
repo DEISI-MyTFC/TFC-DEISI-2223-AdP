@@ -10,7 +10,7 @@ RUN --mount=from=node_tools,source=/usr/local,target=/tmp/node-tools,ro \
     --mount=type=bind,source=.devcontainer/dev-entrypoint.sh,target=/tmp/tfc-entrypoint.sh,ro \
     --mount=type=secret,id=proxy_ca \
     apt-get update \
-    && apt-get install -y --no-install-recommends bash ca-certificates curl git gosu libstdc++6 openssh-client procps sudo \
+    && apt-get install -y --no-install-recommends bash ca-certificates curl git gosu libstdc++6 openssh-client procps sqlite3 sudo \
     && rm -rf /var/lib/apt/lists/* \
     && install -m 0755 /tmp/node-tools/bin/node /usr/local/bin/node \
     && install -d /usr/local/lib/node_modules /usr/local/libexec/docker \

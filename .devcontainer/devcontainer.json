@@ -9,7 +9,7 @@
   "shutdownAction": "stopCompose",
   "postCreateCommand": "bash .devcontainer/check-tools.sh",
   "waitFor": "postCreateCommand",
-  "forwardPorts": ["frontend:5173", 8000],
+  "forwardPorts": ["frontend:5173", 8000, "bdtfc:5432"],
   "portsAttributes": {
     "frontend:5173": {
       "label": "React frontend",
@@ -20,6 +20,10 @@
       "label": "Django backend",
       "onAutoForward": "silent",
       "protocol": "http"
+    },
+    "5432": {
+      "label": "PostgreSQL",
+      "onAutoForward": "silent"
     }
   },
   "customizations": {
@@ -28,9 +32,13 @@
         "ms-python.python",
         "dbaeumer.vscode-eslint",
         "ms-ossdata.vscode-pgsql",
-        "ms-azuretools.vscode-docker"
+        "ms-azuretools.vscode-docker",
+        "alexcvzz.vscode-sqlite"
       ],
-      "settings": {"python.defaultInterpreterPath": "/usr/local/bin/python"}
+      "settings": {
+        "python.defaultInterpreterPath": "/usr/local/bin/python",
+        "sqlite.sqlite3": "/usr/bin/sqlite3"
+      }
     }
   }
 }
