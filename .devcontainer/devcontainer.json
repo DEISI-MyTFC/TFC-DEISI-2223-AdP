@@ -7,6 +7,8 @@
   "remoteUser": "vscode",
   "overrideCommand": false,
   "shutdownAction": "stopCompose",
+  "postCreateCommand": "bash .devcontainer/check-tools.sh",
+  "waitFor": "postCreateCommand",
   "forwardPorts": ["frontend:5173", 8000],
   "portsAttributes": {
     "frontend:5173": {

@@ -71,10 +71,34 @@ Container** to refresh the images and their dependencies.
 The default terminal is inside the backend container:
 
 ```bash
+python --version
+node --version
+npm --version
+docker --version
+docker compose version
+docker ps
+
 cd /workspaces/TFC-DEISI-2223-AdP/backend
 python manage.py check
 python manage.py test
 python manage.py createsuperuser --database=auth_db
+```
+
+The backend development image includes Python 3.13, Node.js 22, npm, the Docker
+CLI, Compose and Buildx. A post-create check verifies these tools and confirms
+that the Docker engine is reachable. Docker commands and the Docker extension
+use the Codespace's existing engine through its mounted socket. The entrypoint
+sets up the development user's socket group, then runs Django as `vscode`.
+The `docker` package installed by pip is a Python SDK; the Docker CLI is supplied
+by the development image.
+
+Frontend dependencies are shared with the backend/editor container, so these
+commands also work in the default Codespaces terminal after startup:
+
+```bash
+cd /workspaces/TFC-DEISI-2223-AdP/frontend
+npm run lint
+npm run build
 ```
 
 Use the separately forwarded port 8000 for Django's `/admin/`. Opening its root

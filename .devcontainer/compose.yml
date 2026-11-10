@@ -21,16 +21,18 @@ services:
       context: .
       dockerfile: .devcontainer/backend.Dockerfile
     init: true
-    user: vscode
     restart: unless-stopped
     working_dir: /workspaces/TFC-DEISI-2223-AdP/backend
     volumes:
       - .:/workspaces/TFC-DEISI-2223-AdP
+      - frontend_node_modules:/workspaces/TFC-DEISI-2223-AdP/frontend/node_modules
+      - /var/run/docker.sock:/var/run/docker.sock
     environment:
       DJANGO_SETTINGS_MODULE: core.codespaces_settings
       DJANGO_SECRET_KEY: codespace-development-only-not-for-production-keep-private
       DEBUG: "True"
       PYTHONUNBUFFERED: "1"
+      DOCKER_HOST: unix:///var/run/docker.sock
       POSTGRES_DB: tfc_bd
       POSTGRES_USER: dev_user
       POSTGRES_PASSWORD: codespace-development-only
@@ -73,7 +75,7 @@ services:
       VITE_GOOGLE_CLIENT_ID: ""
       CODESPACE_NAME: ${CODESPACE_NAME:-}
       GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN: ${GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN:-app.github.dev}
-    command: ["sh", "-c", "npm ci --offline --cache /opt/npm-cache --no-audit --no-fund && exec npm run dev -- --host 0.0.0.0 --port 5173 --strictPort"]
+    command: ["sh", "../.devcontainer/start-frontend.sh"]
     depends_on:
       backend:
         condition: service_healthy
