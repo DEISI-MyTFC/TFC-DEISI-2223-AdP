@@ -22,9 +22,12 @@ the install (`--offline`).
 
 VS Code automatically installs Python, ESLint, Microsoft's PostgreSQL extension
 (`ms-ossdata.vscode-pgsql`) and the Docker Extension Pack
-(`ms-azuretools.vscode-docker`), plus SQLite by alexcvzz
-(`alexcvzz.vscode-sqlite`), when creating the Codespace. For an existing
+(`ms-azuretools.vscode-docker`), plus SQLite Viewer by Florian Klampfer
+(`qwtel.sqlite-viewer`), when creating the Codespace. For an existing
 Codespace, pull the updated configuration and run **Codespaces: Rebuild Container**.
+For this extension change alone, an existing Codespace can instead uninstall
+**SQLite** (`alexcvzz.vscode-sqlite`) in the Extensions panel and install
+**SQLite Viewer** (`qwtel.sqlite-viewer`) there, without rebuilding.
 
 Django runs on port **8000**. The backend/editor container also provides loopback
 TCP relays: `localhost:5432` reaches PostgreSQL at `bdtfc:5432`, and
@@ -168,16 +171,90 @@ socat TCP4-LISTEN:5432,bind=127.0.0.1,reuseaddr,fork TCP:bdtfc:5432
 
 Then choose **Forward a Port** in the Ports panel and enter **5432**.
 
-For SQLite, run **SQLite: Open Database** in the Command Palette and select
-`backend/auth.sqlite3`. Use **SQLite: New Query** to query it outside Django admin.
-The file is created by the automatic authentication migrations. The extension is
-configured to use the development image's `/usr/bin/sqlite3` executable.
+For SQLite, open `backend/auth.sqlite3` from the Explorer. If another editor is
+associated with the file, right-click it and choose **Open With... → SQLite Viewer**.
+The file is created by the automatic authentication/API migrations. The viewer
+has its own SQLite support and does not need the old `sqlite.sqlite3` setting.
+
+[SQLite Viewer](https://marketplace.visualstudio.com/items?itemName=qwtel.sqlite-viewer)
+provides a cached, read-only table browser with filtering and sorting; it does
+not provide a SQL query runner. Reopen/refresh the viewer after Django writes
+new data. For arbitrary SQL, the development image still includes the SQLite CLI.
+From the repository root, for example:
+
+```bash
+sqlite3 -readonly -header -column backend/auth.sqlite3 "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name;"
+sqlite3 -readonly backend/auth.sqlite3 '.schema api_savedreport'
+```
 
 The frontend uses relative API URLs. Vite proxies `/api` and `/dj-rest-auth`
 to `backend:8000`, so browser cookies stay on the frontend's forwarded origin.
 Only this Codespace's exact frontend hostname is added to Vite's allowed hosts;
 Django trusts its two forwarded origins for CSRF. Keep forwarded ports private:
 the supplied credentials and debug servers are for development.
+
+## Where models and tables live
+
+`backend/api/models.py` defines two models. Their committed migrations are in
+`backend/api/migrations/`: `0001_initial` creates `OTPChallenge`, `0003_savedreport`
+creates `SavedReport`, and the remaining migrations update their fields/indexes.
+`makemigrations` generates migration files from model changes; `migrate` applies
+existing files to a database. Startup runs `migrate`, not `makemigrations`.
+
+`backend/core/dbrouters.py` includes the entire `api` app in `AuthRouter.auth_apps`,
+so **both API models go to SQLite**, along with the authentication/admin apps:
+
+| Model/data | Database | Table/source |
+| --- | --- | --- |
+| `OTPChallenge` | `auth_db`: `backend/auth.sqlite3` | `api_otpchallenge` |
+| `SavedReport` | `auth_db`: `backend/auth.sqlite3` | `api_savedreport` |
+| Users, permissions, sessions, admin, sites and allauth | `auth_db`: `backend/auth.sqlite3` | Django/allauth tables, such as `auth_user` |
+| Synthetic report data | `default`: PostgreSQL | `demo_projects`, `demo_tasks`, created by `.devcontainer/seed.sql` |
+
+Both databases can contain `django_migrations`. Django can record a migration as
+applied on `default` even when the router skips its table operations there, so
+`migrate --database=default` reporting `OK` does not mean API/auth tables were
+created in PostgreSQL. Inspect actual tables as well as migration history:
+
+```bash
+cd backend
+python manage.py showmigrations api --database=auth_db
+python manage.py shell -c "from django.db import connections; [print(alias, connections[alias].introspection.table_names()) for alias in connections]"
+```
+
+`SavedReport` exists in SQLite but is not registered in `backend/api/admin.py`;
+only `OTPChallenge` is registered there. A model's absence from Django admin does
+not mean its table is missing.
+
+The larger business relational schema is **not included in the current `master`
+or `workingEnv` checkout**: there is no corresponding set of Django models,
+migrations, SQL schema or database dump. The two demo tables are synthetic
+Codespaces fixtures, not that schema. The reporting code in
+`backend/api/report_views.py` and `report_sql.py` reads PostgreSQL's existing
+tables, columns and foreign keys through `information_schema`/`pg_catalog`;
+it does not create the business tables. Restoring that model requires its
+original schema/migrations and, if needed, a data dump. Creating a Codespace or
+changing `.env` cannot reconstruct a missing database schema.
+
+## Which environment file is used
+
+The backend image contains Python and installed packages; it does not bake in
+your private `.env` files. Configuration is supplied at runtime:
+
+| File/source | Codespaces behavior |
+| --- | --- |
+| Root `.env` | Automatically created if missing; Compose passes its database credentials to PostgreSQL and Django. |
+| `.devcontainer/compose.yml` `environment` | Explicit values take precedence over root `.env`, including the internal database host/port, Django settings module, secret and debug defaults. |
+| `backend/.env` | Optional; `backend/core/settings.py` reads it if present. It fills environment values that Compose has not already supplied. |
+| `backend/.env.example` | Manual setup template; it is not loaded or automatically copied in Codespaces. |
+
+For example, `OTP_CODE_EXPIRY_MINUTES` or `CSRF_TRUSTED_ORIGINS` can be supplied
+through `backend/.env` if absent from the process environment. PostgreSQL
+credentials already supplied by Compose take precedence over duplicates there.
+`core.codespaces_settings` also deliberately selects local file-based email
+delivery, so copying the SMTP/Google placeholders from the manual template is
+unnecessary. Restart Django after editing an optional backend environment file;
+recreate the containers after changing root `.env` values supplied by Compose.
 
 ## Register and log in without SMTP
 

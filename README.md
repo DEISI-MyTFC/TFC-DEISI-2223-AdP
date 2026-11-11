@@ -179,14 +179,40 @@ docker compose down
 
 O backend usa duas bases:
 
-- `default`: PostgreSQL, para dados da aplicação e relatórios.
-- `auth_db`: SQLite, para autenticação e utilizadores.
+- `default`: PostgreSQL, para as tabelas de dados consultadas pelos relatórios.
+- `auth_db`: SQLite, para autenticação, utilizadores e todos os modelos da app
+  `api`, incluindo `OTPChallenge` e `SavedReport`.
 
 O ficheiro SQLite é criado em:
 
 ```text
 backend/auth.sqlite3
 ```
+
+O `AuthRouter` em `backend/core/dbrouters.py` encaminha a app `api` para SQLite:
+as migrações criam `api_otpchallenge` e `api_savedreport` neste ficheiro. O modelo
+`SavedReport` não está registado em `backend/api/admin.py`, pelo que não aparece
+automaticamente no admin. O comando `migrate --database=default` pode registar
+migrações como aplicadas mesmo quando o router não cria essas tabelas no PostgreSQL.
+
+No estado atual de `master` e `workingEnv`, o repositório **não inclui o modelo
+relacional de negócio completo**, nem um schema/dump que o crie. O seed do
+Codespaces, `.devcontainer/seed.sql`, cria apenas `demo_projects` e `demo_tasks`.
+O backend de relatórios consulta as tabelas e relações já existentes no PostgreSQL;
+para usar o modelo real é necessário obter e importar o seu schema/migrações.
+
+No Codespaces, abre este ficheiro com **SQLite Viewer de Florian Klampfer**
+(`qwtel.sqlite-viewer`). O viewer permite consultar/filtrar tabelas em modo de
+leitura; para executar SQL usa o `sqlite3` já instalado, a partir da raiz:
+
+```bash
+sqlite3 -readonly -header -column backend/auth.sqlite3 "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name;"
+```
+
+O `backend/.env` continua opcional no Codespaces: é lido se existir, mas não é
+copiado automaticamente de `.env.example`. As variáveis recebidas do Compose
+têm prioridade, e `core.codespaces_settings` seleciona o email local em ficheiros.
+Ver [ficheiros de ambiente e localização das tabelas](.devcontainer/README.md#which-environment-file-is-used).
 
 ## Backend
 

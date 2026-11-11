@@ -38,11 +38,10 @@
         "dbaeumer.vscode-eslint",
         "ms-ossdata.vscode-pgsql",
         "ms-azuretools.vscode-docker",
-        "alexcvzz.vscode-sqlite"
+        "qwtel.sqlite-viewer"
       ],
       "settings": {
-        "python.defaultInterpreterPath": "/opt/venv/bin/python",
-        "sqlite.sqlite3": "/usr/bin/sqlite3"
+        "python.defaultInterpreterPath": "/opt/venv/bin/python"
       }
     }
   }
