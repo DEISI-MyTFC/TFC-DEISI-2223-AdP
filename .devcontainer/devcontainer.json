@@ -5,8 +5,13 @@
   "runServices": ["bdtfc", "backend", "frontend"],
   "workspaceFolder": "/workspaces/TFC-DEISI-2223-AdP",
   "remoteUser": "vscode",
+  "remoteEnv": {
+    "VIRTUAL_ENV": "/opt/venv",
+    "PATH": "/opt/venv/bin:${containerEnv:PATH}"
+  },
   "overrideCommand": false,
   "shutdownAction": "stopCompose",
+  "initializeCommand": ["bash", "${localWorkspaceFolder}/.devcontainer/initialize-env.sh"],
   "postCreateCommand": "bash .devcontainer/check-tools.sh",
   "waitFor": "postCreateCommand",
   "forwardPorts": [5173, 8000, 5432],
@@ -36,7 +41,7 @@
         "alexcvzz.vscode-sqlite"
       ],
       "settings": {
-        "python.defaultInterpreterPath": "/usr/local/bin/python",
+        "python.defaultInterpreterPath": "/opt/venv/bin/python",
         "sqlite.sqlite3": "/usr/bin/sqlite3"
       }
     }

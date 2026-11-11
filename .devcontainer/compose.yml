@@ -1,17 +1,12 @@
 # Paths are relative to the first Compose file, ../docker-compose.yml.
 services:
   bdtfc:
-    # The Codespace is self-contained: no .env or host database port required.
-    env_file: !reset []
+    # Inherit the root .env from docker-compose.yml; keep host ports private.
     ports: !reset []
-    environment:
-      POSTGRES_DB: tfc_bd
-      POSTGRES_USER: dev_user
-      POSTGRES_PASSWORD: codespace-development-only
     volumes:
       - ./.devcontainer/seed.sql:/docker-entrypoint-initdb.d/10-demo.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U dev_user -d tfc_bd"]
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
       interval: 2s
       timeout: 5s
       retries: 30
@@ -27,15 +22,14 @@ services:
       - .:/workspaces/TFC-DEISI-2223-AdP
       - frontend_node_modules:/workspaces/TFC-DEISI-2223-AdP/frontend/node_modules
       - /var/run/docker.sock:/var/run/docker.sock
+    env_file:
+      - .env
     environment:
       DJANGO_SETTINGS_MODULE: core.codespaces_settings
       DJANGO_SECRET_KEY: codespace-development-only-not-for-production-keep-private
       DEBUG: "True"
       PYTHONUNBUFFERED: "1"
       DOCKER_HOST: unix:///var/run/docker.sock
-      POSTGRES_DB: tfc_bd
-      POSTGRES_USER: dev_user
-      POSTGRES_PASSWORD: codespace-development-only
       POSTGRES_HOST: bdtfc
       POSTGRES_PORT: "5432"
       GOOGLE_CLIENT_ID: ""

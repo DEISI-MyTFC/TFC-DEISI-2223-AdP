@@ -3,6 +3,9 @@ FROM node:22-bookworm-slim AS node_tools
 FROM docker:28-cli AS docker_tools
 FROM python:3.13-slim-bookworm
 
+ENV VIRTUAL_ENV=/opt/venv
+ENV PATH="/opt/venv/bin:${PATH}"
+
 # Copy tools and install dependencies in one layer to keep the dev image small.
 RUN --mount=from=node_tools,source=/usr/local,target=/tmp/node-tools,ro \
     --mount=from=docker_tools,source=/usr/local,target=/tmp/docker-tools,ro \
@@ -24,8 +27,12 @@ RUN --mount=from=node_tools,source=/usr/local,target=/tmp/node-tools,ro \
     && echo 'vscode ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/vscode \
     && chmod 0440 /etc/sudoers.d/vscode \
     && install -m 0755 /tmp/tfc-entrypoint.sh /usr/local/bin/tfc-dev-entrypoint \
+    && /usr/local/bin/python -m venv /opt/venv \
     && if [ -f /run/secrets/proxy_ca ]; then export PIP_CERT=/run/secrets/proxy_ca; fi \
-    && python -m pip install --no-cache-dir -r /tmp/tfc-requirements.txt
+    && python -m pip install --no-cache-dir -r /tmp/tfc-requirements.txt \
+    && python -m pip check \
+    && sha256sum < /tmp/tfc-requirements.txt | cut -d ' ' -f1 > /opt/venv/.requirements.sha256 \
+    && chown -R vscode:vscode /opt/venv
 
 ENV HOME=/home/vscode
 ENTRYPOINT ["/usr/local/bin/tfc-dev-entrypoint"]

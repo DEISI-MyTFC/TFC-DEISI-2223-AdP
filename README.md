@@ -1,8 +1,9 @@
 # App Relatórios TFC
 
 **GitHub Codespaces:** ambiente completo com PostgreSQL, backend e frontend,
-sem serviços externos ou ficheiros `.env`.
-Ver [instruções de arranque e autenticação](.devcontainer/README.md).
+sem serviços externos. O `.env` da raiz é criado automaticamente se não existir;
+o ambiente Python, dependências e migrações do backend são preparados no arranque.
+Ver [instruções de arranque, atualização e autenticação](.devcontainer/README.md).
 
 Aplicação full-stack para criação, gestão, pré-visualização e exportação de relatórios.
 
@@ -32,7 +33,8 @@ O projeto é composto por:
 
 ## Requisitos
 
-Instala no ambiente onde vais correr a app:
+O Codespaces já fornece as ferramentas necessárias. Para instalação manual fora
+do Codespaces, instala no ambiente onde vais correr a app:
 
 | Ferramenta | Versão recomendada |
 |---|---|
@@ -79,6 +81,12 @@ Existem três ficheiros de ambiente:
 - `.env`: usado pelo `docker-compose.yml` para criar o PostgreSQL.
 - `backend/.env`: usado pelo Django.
 - `frontend/.env`: usado pelo Vite/React.
+
+No **Codespaces**, o `.env` da raiz fornece as credenciais PostgreSQL tanto ao
+servidor como ao Django. É criado a partir de `.devcontainer/.env.example` apenas
+se não existir; um ficheiro existente é preservado. O `backend/.env` é opcional
+para outras definições, e as credenciais recebidas do Compose têm prioridade.
+Os passos de cópia abaixo destinam-se à instalação manual fora do Codespaces.
 
 Os ficheiros reais `.env` não devem ser versionados. Usa os exemplos:
 
@@ -180,14 +188,67 @@ O ficheiro SQLite é criado em:
 backend/auth.sqlite3
 ```
 
-## Backend (***codespaces***)
+## Backend
 
-### 1. Criar Ambiente Virtual
+### GitHub Codespaces: Arranque Automático
+
+O contentor cria o ambiente virtual **`/opt/venv`** e instala as dependências no
+build. O terminal e o VS Code usam esse Python automaticamente. Em cada arranque,
+o backend verifica `requirements.txt`, instala alterações quando necessário,
+valida as dependências e executa as migrações de `auth_db` e `default` antes de
+iniciar Django. Não é necessário criar/ativar outro `.venv`, instalar Django
+manualmente ou executar outro `runserver`.
+
+Verificar e criar o administrador, apenas na primeira utilização:
+
+```bash
+python -c 'import sys; print(sys.executable)'
+python -m django --version
+cd backend
+python manage.py createsuperuser --database=auth_db
+```
+
+O Python deve ser `/opt/venv/bin/python`. Abre a porta **8000** no painel **Ports**;
+a raiz redireciona para `/admin/`. Se o VS Code tiver guardado outro intérprete,
+seleciona `/opt/venv/bin/python` em **Python: Select Interpreter** e abre um novo terminal.
+
+### Atualizar O Codespace Com Alterações Do GitHub
+
+Guarda e faz commit das alterações locais, ou usa `git stash push -u`, antes de
+atualizar. Na raiz do repositório:
+
+```bash
+git status --short
+git branch --show-current
+git fetch origin
+git pull --ff-only
+```
+
+O pull atualiza o ramo atual: `workingEnv` recebe `origin/workingEnv`, e `master`
+recebe `origin/master`. Se o PR foi integrado apenas em `master` e continuas em
+`workingEnv`, integra essas alterações com `git merge origin/master`.
+Se usaste stash, recupera o trabalho com `git stash pop` depois da atualização.
+
+- Código Python: Django recarrega automaticamente.
+- Migrações novas: executa `bash .devcontainer/setup-backend.sh` na raiz.
+- `requirements.txt`: para e volta a iniciar o Codespace; o arranque sincroniza
+  as dependências antes das migrações.
+- Dockerfile, Compose, configuração do devcontainer ou `.env` da raiz:
+  executa **Codespaces: Rebuild Container** depois do pull.
+
+Esta atualização do ambiente Python e das credenciais requer um rebuild inicial.
+Confirma antes que o `.env` da raiz contém as credenciais da base existente:
+alterar o ficheiro não altera a password guardada no volume PostgreSQL.
+Ver [operação e credenciais PostgreSQL](.devcontainer/README.md#connect-the-database-extensions).
+
+### Instalação Manual Fora Do Codespaces
+
+#### 1. Criar Ambiente Virtual
 
 ```powershell
 cd backend
 python -m venv .venv
-source ./.venv/bin/activate
+.\.venv\Scripts\Activate.ps1
 ```
 
 Se o PowerShell bloquear scripts:
@@ -196,7 +257,7 @@ Se o PowerShell bloquear scripts:
 Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
 ```
 
-### 2. Instalar Dependências
+#### 2. Instalar Dependências
 
 ```powershell
 pip install -r requirements.txt
@@ -216,7 +277,7 @@ O ficheiro `backend/requirements.txt` contém as dependências necessárias para
 - psycopg2-binary
 - reportlab
 
-### 3. Migrar Base De Dados
+#### 3. Migrar Base De Dados
 
 Como o projeto usa mais do que uma base de dados, executa as migrações explicitamente:
 
@@ -225,13 +286,13 @@ python manage.py migrate --database=auth_db
 python manage.py migrate --database=default
 ```
 
-### 4. Criar Superutilizador
+#### 4. Criar Superutilizador
 
 ```powershell
 python manage.py createsuperuser --database=auth_db
 ```
 
-### 5. Correr Backend
+#### 5. Correr Backend
 
 ```powershell
 python manage.py runserver 127.0.0.1:8000
@@ -338,7 +399,16 @@ Os ficheiros são gerados em memória no momento da exportação e enviados dire
 
 ## Comandos De Validação
 
-Backend:
+Backend no Codespaces, sem ativação manual:
+
+```bash
+cd backend
+python manage.py check
+python manage.py test
+python -m pip check
+```
+
+Backend numa instalação manual:
 
 ```powershell
 cd backend
@@ -381,7 +451,12 @@ POSTGRES_PORT=5432
 
 ### `Couldn't import Django`
 
-Ativar o ambiente virtual:
+No Codespaces, confirma que o terminal usa `/opt/venv/bin/python`. Não atives
+um `.venv` criado manualmente. Se o ambiente gerido ainda não existir, atualiza
+o ramo e faz **Codespaces: Rebuild Container**. As migrações e o servidor usam
+o mesmo ambiente e não precisam de uma segunda instalação de Django.
+
+Fora do Codespaces, ativar o ambiente virtual:
 
 ```powershell
 cd backend
@@ -433,6 +508,10 @@ VITE_API_BASE_URL=http://localhost:8000
 ```
 
 ## Setup Rápido
+
+Os comandos abaixo destinam-se à instalação manual local. No Codespaces usa o
+[arranque automático do backend](#github-codespaces-arranque-automático), sem
+criar outro ambiente virtual ou iniciar um segundo servidor.
 
 ```powershell
 # 1. Preparar envs

@@ -2,9 +2,11 @@
 
 This configuration runs PostgreSQL 15, Django (Python 3.13) and React/Vite
 (Node.js 22) inside one Codespace. It extends the root `docker-compose.yml`.
-No external database, SMTP service, Google account, secrets or `.env` files are
-needed. Building the images downloads container images and Python/npm packages;
-container startup and app use require no external services. npm installs from
+No external database, SMTP service or Google account is needed. A root `.env`
+is created automatically from `.devcontainer/.env.example` if missing;
+an existing `.env` is preserved. Building the images downloads container images
+and Python/npm packages. Normal startup with unchanged requirements and app use
+require no external services. npm installs from
 the package cache bundled in the frontend image, with networking disabled for
 the install (`--offline`).
 
@@ -14,6 +16,9 @@ the install (`--offline`).
 2. Choose **Code → Codespaces → Create codespace on workingEnv**.
 3. Wait for the containers to start. Open **React frontend** on port **5173**
    from the **Ports** tab if it has not opened automatically.
+4. Open **Django backend** on port **8000** for the backoffice. Its root redirects
+   to `/admin/`. Create an admin user once with
+   `cd backend && python manage.py createsuperuser --database=auth_db`.
 
 VS Code automatically installs Python, ESLint, Microsoft's PostgreSQL extension
 (`ms-ossdata.vscode-pgsql`) and the Docker Extension Pack
@@ -30,6 +35,74 @@ The **Ports** panel is configured to show **5432**, **5173** and **8000**.
 Both database migrations run automatically before Django starts. A health check
 gates each dependent service, and the post-create check verifies both relays.
 
+## Automatic backend setup
+
+The backend image creates a Python 3.13 virtual environment at `/opt/venv` and
+installs `backend/requirements.txt` there during the build. This is why Django
+can run migrations before you open a terminal. VS Code, terminal `python`/`pip`,
+health checks and the running backend all use that same environment automatically.
+Do not create or activate an additional `backend/venv` or `backend/.venv` for
+this Codespace; it would hide the installed packages.
+
+Whenever the backend container starts, `.devcontainer/setup-backend.sh` checks
+the requirements fingerprint, installs requirements if they changed, checks the
+installed dependencies, and runs both database migrations before starting Django.
+An unchanged requirements file does not trigger a package download on restart.
+Changed requirements may need access to PyPI. No manual activation or
+`pip install -r requirements.txt` is needed in normal Codespaces use.
+
+Verify the environment from a new terminal:
+
+```bash
+python -c 'import sys; print(sys.executable); print(sys.prefix)'
+python -m pip --version
+python -m django --version
+```
+
+The executable/prefix should be under `/opt/venv`. If an existing Codespace has
+a previously selected interpreter, use **Python: Select Interpreter** and choose
+`/opt/venv/bin/python`, then open a new terminal. If it still shows Python 3.14 or
+the managed environment is missing, the updated container has not been built.
+
+## Update an existing Codespace
+
+A Codespace is a Git checkout. Changes or merged PRs on GitHub do not update it
+automatically. First save and commit your local changes, or stash them with
+`git stash push -u`; ignored `.env` and database files are not included in a stash.
+From the repository root, check the current branch and pull that branch:
+
+```bash
+cd /workspaces/TFC-DEISI-2223-AdP
+git status --short
+git branch --show-current
+git fetch origin
+git pull --ff-only
+```
+
+For a Codespace on `workingEnv`, this pulls `origin/workingEnv`; on `master`,
+it pulls `origin/master`. If upstream tracking is missing, use
+`git pull --ff-only origin workingEnv` (or `master` for that branch).
+If a PR was merged only into `master` while your Codespace remains on
+`workingEnv`, merge `origin/master` into your working branch explicitly with
+`git merge origin/master`, resolve any conflicts, and commit the result.
+Restore stashed work with `git stash pop` after updating. A refused fast-forward
+means the branches diverged; review/merge the commits instead of resetting files.
+
+Apply the update according to what changed:
+
+| Change | Action after pulling |
+| --- | --- |
+| Backend source only | Django reloads source edits automatically. |
+| New migrations | Run `bash .devcontainer/setup-backend.sh` from the repository root. |
+| `backend/requirements.txt` | Stop and start the Codespace. Startup installs changed requirements before migrations and restarts Django with the new packages. |
+| Dockerfile, Compose, devcontainer settings or root `.env` | Run **Codespaces: Rebuild Container** to recreate the containers with the updated image/environment. |
+
+Applying the `/opt/venv` and `.env` configuration to an older Codespace requires
+one rebuild after pulling; pulling alone cannot change the running container.
+Before that rebuild, ensure the root `.env` matches the credentials of the
+existing PostgreSQL volume. Rebuilding preserves the workspace and database
+volume; deleting the Codespace deletes its local data.
+
 ## Connect the database extensions
 
 The PostgreSQL extension runs inside the backend/editor container. Use the
@@ -45,16 +118,36 @@ database service name directly when adding a connection:
 | Password | `codespace-development-only` |
 | SSL mode | Disable (the local development server uses plain TCP) |
 
-These are the Codespaces development defaults set explicitly for both PostgreSQL
-and Django in `.devcontainer/compose.yml`. The override replaces the root
-Compose `env_file`, so the root `.env` is used by the manual database-only setup,
-not by this Codespaces stack. Explicit container environment values also take
-precedence over `backend/.env` when Django loads its settings.
+The table shows the defaults in `.devcontainer/.env.example`. Both PostgreSQL
+and Django now read `POSTGRES_DB`, `POSTGRES_USER` and `POSTGRES_PASSWORD` from
+the **root `.env`**, so use that file's values when connecting. These credentials
+are no longer hardcoded in the Compose YAML. The initialization script never
+overwrites an existing `.env`, and the real file is ignored by Git.
+
+Edit the root `.env` to customize the credentials. Quote passwords containing
+`$`, `#` or spaces with single quotes so Compose reads them literally, for example
+`POSTGRES_PASSWORD='a development $ password'`. `backend/.env` remains
+optional for other Django settings; duplicate PostgreSQL credentials there do
+not override the values supplied by Compose. Inside the Codespace, Django always
+uses `bdtfc:5432`; a root `.env` value such as `POSTGRES_HOST=127.0.0.1` or a
+different host `POSTGRES_PORT` belongs to the manual host-based workflow.
 
 PostgreSQL stores the initialized password in its data volume. Changing an
 environment file or rebuilding the container does not change an existing
-database role's password. A fresh database volume uses the default above;
+database role's password. A fresh database volume uses the root `.env` values;
 a reused volume retains its initialized or subsequently changed password.
+For an existing database, keep the current credentials in `.env`. To change a
+password without deleting data, first connect with the current database role:
+
+```bash
+docker exec -it bdtfc psql -U dev_user -d tfc_bd
+```
+
+In `psql`, run `\password dev_user` and enter the new password at its prompts,
+then `\q`. Put the same password in the root `.env` and rebuild to apply it to
+the backend environment. Substitute your existing role/database names if they
+differ. Changing the role name or database name also requires corresponding
+database administration; editing the file alone does not rename them.
 
 This connection uses the private Docker network. The extension does not need
 a published host port, a browser URL or a cloud PostgreSQL account. The forwarded
@@ -119,10 +212,11 @@ frontend dependencies use a separate named volume. Stopping/restarting the
 Codespace preserves these; deleting the Codespace deletes its local data.
 The seed SQL runs only for a new, empty PostgreSQL volume.
 
-Django and Vite reload source edits. npm dependencies are installed offline from
-the lockfile on frontend startup. After changing Python requirements, the
-frontend lockfile or container configuration, run **Codespaces: Rebuild
-Container** to refresh the images and their dependencies.
+Django and Vite reload source edits. Python requirements are synchronized before
+migrations at backend startup. npm dependencies are installed offline from
+the lockfile on frontend startup. After changing the frontend lockfile or
+container configuration, run **Codespaces: Rebuild Container** to refresh the
+images and their dependencies.
 
 The default terminal is inside the backend container:
 
@@ -187,6 +281,7 @@ Use Docker Compose **2.24.4 or newer** (the override uses `!reset`). From the
 repository root:
 
 ```bash
+bash .devcontainer/initialize-env.sh
 docker compose -f docker-compose.yml -f .devcontainer/compose.yml up --build -d
 docker compose -f docker-compose.yml -f .devcontainer/compose.yml logs -f
 ```
@@ -212,8 +307,8 @@ with or without a BOM, and the templates no longer include it. For an older
 checkout, save `backend/.env` as UTF-8 without BOM, preserving its values.
 
 The Codespaces configuration supplies Django settings through the backend
-container environment and does not require a `.env` file or a Python virtual
-environment. If you created a Codespace from a branch without this configuration,
+container environment, initializes the root `.env` automatically if missing,
+and manages `/opt/venv` for you. If you created a Codespace from a branch without this configuration,
 switch to `workingEnv` (or the target branch after merging) and run
 **Codespaces: Rebuild Container**. The configured backend uses Python 3.13 and
 runs both migrations automatically.

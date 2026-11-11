@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-python manage.py migrate --database=auth_db --noinput
-python manage.py migrate --database=default --noinput
+bash "$(dirname -- "${BASH_SOURCE[0]}")/setup-backend.sh"
 
 # Codespaces forwards numeric ports from the editor container's localhost.
 # Relay the other services without publishing database ports on the Docker host.
