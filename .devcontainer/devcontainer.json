@@ -1,0 +1,44 @@
+{
+  "name": "TFC: Django, React and PostgreSQL",
+  "dockerComposeFile": ["../docker-compose.yml", "compose.yml"],
+  "service": "backend",
+  "runServices": ["bdtfc", "backend", "frontend"],
+  "workspaceFolder": "/workspaces/TFC-DEISI-2223-AdP",
+  "remoteUser": "vscode",
+  "overrideCommand": false,
+  "shutdownAction": "stopCompose",
+  "postCreateCommand": "bash .devcontainer/check-tools.sh",
+  "waitFor": "postCreateCommand",
+  "forwardPorts": [5173, 8000, 5432],
+  "portsAttributes": {
+    "5173": {
+      "label": "React frontend",
+      "onAutoForward": "openBrowser",
+      "protocol": "http"
+    },
+    "8000": {
+      "label": "Django backend",
+      "onAutoForward": "silent",
+      "protocol": "http"
+    },
+    "5432": {
+      "label": "PostgreSQL",
+      "onAutoForward": "silent"
+    }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "dbaeumer.vscode-eslint",
+        "ms-ossdata.vscode-pgsql",
+        "ms-azuretools.vscode-docker",
+        "alexcvzz.vscode-sqlite"
+      ],
+      "settings": {
+        "python.defaultInterpreterPath": "/usr/local/bin/python",
+        "sqlite.sqlite3": "/usr/bin/sqlite3"
+      }
+    }
+  }
+}

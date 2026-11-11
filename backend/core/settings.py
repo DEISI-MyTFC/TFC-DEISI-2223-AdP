@@ -6,7 +6,8 @@ from datetime import timedelta
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 env = environ.Env(DEBUG=(bool, True))
-environ.Env.read_env(os.path.join(BASE_DIR, ".env"))
+# Accept existing .env files saved with a UTF-8 BOM as well as plain UTF-8.
+environ.Env.read_env(os.path.join(BASE_DIR, ".env"), encoding="utf-8-sig")
 
 # =========================================================
 # CORE
@@ -176,9 +177,17 @@ CORS_ALLOWED_ORIGINS = [
 
 CORS_ALLOW_CREDENTIALS = True
 
-CSRF_TRUSTED_ORIGINS = [
-    "http://localhost:5173",
-]
+CSRF_TRUSTED_ORIGINS = env.list(
+    "CSRF_TRUSTED_ORIGINS",
+    default=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:8000",
+        "http://127.0.0.1:8000",
+        "https://localhost:8000",
+        "https://127.0.0.1:8000",
+    ],
+)
 
 # Cookies settings (não usadas para auth JWT, mas mantidas)
 SESSION_COOKIE_SAMESITE = "Lax"

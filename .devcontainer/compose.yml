@@ -1,0 +1,90 @@
+# Paths are relative to the first Compose file, ../docker-compose.yml.
+services:
+  bdtfc:
+    # The Codespace is self-contained: no .env or host database port required.
+    env_file: !reset []
+    ports: !reset []
+    environment:
+      POSTGRES_DB: tfc_bd
+      POSTGRES_USER: dev_user
+      POSTGRES_PASSWORD: codespace-development-only
+    volumes:
+      - ./.devcontainer/seed.sql:/docker-entrypoint-initdb.d/10-demo.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U dev_user -d tfc_bd"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
+  backend:
+    build:
+      context: .
+      dockerfile: .devcontainer/backend.Dockerfile
+    init: true
+    restart: unless-stopped
+    working_dir: /workspaces/TFC-DEISI-2223-AdP/backend
+    volumes:
+      - .:/workspaces/TFC-DEISI-2223-AdP
+      - frontend_node_modules:/workspaces/TFC-DEISI-2223-AdP/frontend/node_modules
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      DJANGO_SETTINGS_MODULE: core.codespaces_settings
+      DJANGO_SECRET_KEY: codespace-development-only-not-for-production-keep-private
+      DEBUG: "True"
+      PYTHONUNBUFFERED: "1"
+      DOCKER_HOST: unix:///var/run/docker.sock
+      POSTGRES_DB: tfc_bd
+      POSTGRES_USER: dev_user
+      POSTGRES_PASSWORD: codespace-development-only
+      POSTGRES_HOST: bdtfc
+      POSTGRES_PORT: "5432"
+      GOOGLE_CLIENT_ID: ""
+      GOOGLE_CLIENT_SECRET: ""
+      DEFAULT_FROM_EMAIL: codespace@example.test
+      CODESPACE_NAME: ${CODESPACE_NAME:-}
+      GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN: ${GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN:-app.github.dev}
+    command: ["bash", "../.devcontainer/start-backend.sh"]
+    depends_on:
+      bdtfc:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import http.client; c = http.client.HTTPConnection('localhost', 8000, timeout=5); c.request('GET', '/api/auth/user/'); assert c.getresponse().status == 401"
+      interval: 3s
+      timeout: 6s
+      start_period: 60s
+      retries: 30
+
+  frontend:
+    build:
+      context: .
+      dockerfile: .devcontainer/frontend.Dockerfile
+    init: true
+    restart: unless-stopped
+    working_dir: /workspaces/TFC-DEISI-2223-AdP/frontend
+    volumes:
+      - .:/workspaces/TFC-DEISI-2223-AdP
+      - frontend_node_modules:/workspaces/TFC-DEISI-2223-AdP/frontend/node_modules
+    environment:
+      # Browser requests stay on the frontend origin; Vite reaches Django internally.
+      VITE_API_BASE_URL: ""
+      VITE_API_PROXY_TARGET: http://backend:8000
+      VITE_GOOGLE_CLIENT_ID: ""
+      CODESPACE_NAME: ${CODESPACE_NAME:-}
+      GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN: ${GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN:-app.github.dev}
+    command: ["sh", "../.devcontainer/start-frontend.sh"]
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:5173').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 5s
+      timeout: 5s
+      start_period: 120s
+      retries: 30
+
+volumes:
+  frontend_node_modules:

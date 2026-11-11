@@ -1,5 +1,9 @@
 # App Relatórios TFC
 
+**GitHub Codespaces:** ambiente completo com PostgreSQL, backend e frontend,
+sem serviços externos ou ficheiros `.env`.
+Ver [instruções de arranque e autenticação](.devcontainer/README.md).
+
 Aplicação full-stack para criação, gestão, pré-visualização e exportação de relatórios.
 
 O projeto é composto por:
